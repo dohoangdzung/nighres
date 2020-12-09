@@ -3,11 +3,11 @@ import nibabel as nb
 import os
 import sys
 import nighresjava
-from ..io import load_volume, save_volume
+from ..io import load_volume, save_volume, time_log
 from ..utils import _output_dir_4saving, _fname_4saving, \
                     _check_topology_lut_dir, _check_atlas_file, \
                     _check_available_memory
-
+import time
 
 def _get_mgdm_orientation(affine, mgdm):
     '''
@@ -67,7 +67,7 @@ def mgdm_segmentation(contrast_image1, contrast_type1,
                       compute_posterior=False, posterior_scale=5.0,
                       diffuse_probabilities=False,
                       save_data=False, overwrite=False, output_dir=None,
-                      file_name=None):
+                      file_name=None, log_file="timelog.json"):
     """ MGDM segmentation
 
     Estimates brain structures from an atlas for MRI data using
@@ -177,6 +177,7 @@ def mgdm_segmentation(contrast_image1, contrast_type1,
     """
 
     print('\nMGDM Segmentation')
+    start = time.time()
 
     # check atlas_file and set default if not given
     atlas_file = _check_atlas_file(atlas_file)
@@ -266,7 +267,7 @@ def mgdm_segmentation(contrast_image1, contrast_type1,
     # (version quant-3.0.5 and above)
 
     # load contrast image 1 and use it to set dimensions and resolution
-    img = load_volume(contrast_image1)
+    img = load_volume(contrast_image1, log_file=log_file)
     data = img.get_data()
     affine = img.affine
     header = img.header
@@ -287,19 +288,19 @@ def mgdm_segmentation(contrast_image1, contrast_type1,
 
     # if further contrast are specified, input them
     if contrast_image2 is not None:
-        data = load_volume(contrast_image2).get_data()
+        data = load_volume(contrast_image2, log_file=log_file).get_data()
         mgdm.setContrastImage2(nighresjava.JArray('float')(
                                             (data.flatten('F')).astype(float)))
         mgdm.setContrastType2(contrast_type2)
 
         if contrast_image3 is not None:
-            data = load_volume(contrast_image3).get_data()
+            data = load_volume(contrast_image3, log_file=log_file).get_data()
             mgdm.setContrastImage3(nighresjava.JArray('float')(
                                             (data.flatten('F')).astype(float)))
             mgdm.setContrastType3(contrast_type3)
 
             if contrast_image4 is not None:
-                data = load_volume(contrast_image4).get_data()
+                data = load_volume(contrast_image4, log_file=log_file).get_data()
                 mgdm.setContrastImage4(nighresjava.JArray('float')(
                                             (data.flatten('F')).astype(float)))
                 mgdm.setContrastType4(contrast_type4)
@@ -344,10 +345,10 @@ def mgdm_segmentation(contrast_image1, contrast_type1,
     mems = nb.Nifti1Image(mems_data, affine, header)
 
     if save_data:
-        save_volume(seg_file, seg)
-        save_volume(dist_file, dist)
-        save_volume(lbl_file, lbls)
-        save_volume(mems_file, mems)
+        save_volume(seg_file, seg, log_file=log_file)
+        save_volume(dist_file, dist, log_file=log_file)
+        save_volume(lbl_file, lbls, log_file=log_file)
+        save_volume(mems_file, mems, log_file=log_file)
         output = {
             'segmentation': seg_file,
             'labels': lbl_file,
@@ -361,5 +362,8 @@ def mgdm_segmentation(contrast_image1, contrast_type1,
             'memberships': mems,
             'distance': dist
         }
+
+    end = time.time()
+    time_log(log_file, "mgdm_segmentation", "makespan", file_name, start, end)
 
     return output

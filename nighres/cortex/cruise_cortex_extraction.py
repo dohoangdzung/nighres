@@ -3,11 +3,11 @@ import nibabel as nb
 import os
 import sys
 import nighresjava
-from ..io import load_volume, save_volume
+from ..io import load_volume, save_volume, time_log
 from ..utils import _output_dir_4saving, _fname_4saving, \
                     _check_topology_lut_dir, _check_atlas_file, \
                     _check_available_memory
-
+import time
 
 def cruise_cortex_extraction(init_image, wm_image, gm_image, csf_image,
                              vd_image=None, data_weight=0.4,
@@ -16,7 +16,7 @@ def cruise_cortex_extraction(init_image, wm_image, gm_image, csf_image,
                              correct_wm_pv=True, wm_dropoff_dist=1.0,
                              topology='wcs', topology_lut_dir=None,
                              save_data=False, overwrite=False, output_dir=None,
-                             file_name=None):
+                             file_name=None, log_file="timelog.json"):
     """ CRUISE cortex extraction
 
     Segments the cortex from a whole brain segmented data set with the CRUISE
@@ -114,6 +114,7 @@ def cruise_cortex_extraction(init_image, wm_image, gm_image, csf_image,
     """
 
     print('\nCRUISE Cortical Extraction')
+    start = time.time()
 
     # check topology_lut_dir and set default if not given
     topology_lut_dir = _check_topology_lut_dir(topology_lut_dir)
@@ -202,7 +203,7 @@ def cruise_cortex_extraction(init_image, wm_image, gm_image, csf_image,
     cruise.setTopologyLUTdirectory(topology_lut_dir)
 
     # load images
-    init = load_volume(init_image)
+    init = load_volume(init_image, log_file=log_file)
     init_data = init.get_data()
     affine = init.affine
     header = init.header
@@ -213,20 +214,20 @@ def cruise_cortex_extraction(init_image, wm_image, gm_image, csf_image,
     cruise.importInitialWMSegmentationImage(nighresjava.JArray('int')(
                                 (init_data.flatten('F')).astype(int).tolist()))
 
-    wm_data = load_volume(wm_image).get_data()
+    wm_data = load_volume(wm_image, log_file=log_file).get_data()
     cruise.setFilledWMProbabilityImage(nighresjava.JArray('float')(
                                         (wm_data.flatten('F')).astype(float)))
 
-    gm_data = load_volume(gm_image).get_data()
+    gm_data = load_volume(gm_image, log_file=log_file).get_data()
     cruise.setGMProbabilityImage(nighresjava.JArray('float')(
                                         (gm_data.flatten('F')).astype(float)))
 
-    csf_data = load_volume(csf_image).get_data()
+    csf_data = load_volume(csf_image, log_file=log_file).get_data()
     cruise.setCSFandBGProbabilityImage(nighresjava.JArray('float')(
                                         (csf_data.flatten('F')).astype(float)))
 
     if vd_image is not None:
-        vd_data = load_volume(vd_image).get_data()
+        vd_data = load_volume(vd_image, log_file=log_file).get_data()
         cruise.setVeinsAndDuraProbabilityImage(nighresjava.JArray('float')(
                                         (vd_data.flatten('F')).astype(float)))
 
@@ -294,17 +295,22 @@ def cruise_cortex_extraction(init_image, wm_image, gm_image, csf_image,
     pcsf = nb.Nifti1Image(pcsf_data, affine, header)
 
     if save_data:
-        save_volume(cortex_file, cortex)
-        save_volume(gwb_file, gwb)
-        save_volume(cgb_file, cgb)
-        save_volume(avg_file, avg)
-        save_volume(thick_file, thickness)
-        save_volume(pwm_file, pwm)
-        save_volume(pgm_file, pgm)
-        save_volume(pcsf_file, pcsf)
+        save_volume(cortex_file, cortex, log_file=log_file)
+        save_volume(gwb_file, gwb, log_file=log_file)
+        save_volume(cgb_file, cgb, log_file=log_file)
+        save_volume(avg_file, avg, log_file=log_file)
+        save_volume(thick_file, thickness, log_file=log_file)
+        save_volume(pwm_file, pwm, log_file=log_file)
+        save_volume(pgm_file, pgm, log_file=log_file)
+        save_volume(pcsf_file, pcsf, log_file=log_file)
 
-        return {'cortex': cortex_file, 'gwb': gwb_file, 'cgb': cgb_file, 'avg': avg_file,
+        result = {'cortex': cortex_file, 'gwb': gwb_file, 'cgb': cgb_file, 'avg': avg_file,
                 'thickness': thick_file, 'pwm': pwm_file, 'pgm': pgm_file, 'pcsf': pcsf_file}
     else:
-        return {'cortex': cortex, 'gwb': gwb, 'cgb': cgb, 'avg': avg,
+        result = {'cortex': cortex, 'gwb': gwb, 'cgb': cgb, 'avg': avg,
                 'thickness': thickness, 'pwm': pwm, 'pgm': pgm, 'pcsf': pcsf}
+
+    end = time.time()
+    time_log(log_file, "cruise_cortex_extraction", "makespan", file_name, start, end)
+
+    return result

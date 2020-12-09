@@ -3,9 +3,10 @@ import nibabel as nb
 import os
 import sys
 import nighresjava
-from ..io import load_volume, save_volume
+from ..io import load_volume, save_volume, time_log
 from ..utils import _output_dir_4saving, _fname_4saving, \
     _check_topology_lut_dir, _check_atlas_file, _check_available_memory
+import time
 
 
 def extract_brain_region(segmentation, levelset_boundary,
@@ -15,7 +16,7 @@ def extract_brain_region(segmentation, levelset_boundary,
                          estimate_tissue_densities=False,
                          partial_volume_distance=1.0,
                          save_data=False, overwrite=False, output_dir=None,
-                         file_name=None):
+                         file_name=None, log_file="timelog.json"):
     """ Extract Brain Region
 
     Extracts masks, probability maps and levelset surfaces for specific brain
@@ -91,6 +92,7 @@ def extract_brain_region(segmentation, levelset_boundary,
     """
 
     print('\nExtract Brain Region')
+    start = time.time()
 
     # check atlas_file and set default if not given
     atlas_file = _check_atlas_file(atlas_file)
@@ -185,7 +187,7 @@ def extract_brain_region(segmentation, levelset_boundary,
             return output
 
     # load images and set dimensions and resolution
-    seg = load_volume(segmentation)
+    seg = load_volume(segmentation, log_file=log_file)
     data = seg.get_data()
     affine = seg.affine
     header = seg.header
@@ -194,20 +196,20 @@ def extract_brain_region(segmentation, levelset_boundary,
 
     xbr.setDimensions(dimensions[0], dimensions[1], dimensions[2])
     xbr.setResolutions(resolution[0], resolution[1], resolution[2])
-    xbr.setComponents(load_volume(maximum_membership).header.get_data_shape()[3])
+    xbr.setComponents(load_volume(maximum_membership, log_file=log_file).header.get_data_shape()[3])
 
     xbr.setSegmentationImage(nighresjava.JArray('int')(
         (data.flatten('F')).astype(int).tolist()))
 
-    data = load_volume(levelset_boundary).get_data()
+    data = load_volume(levelset_boundary, log_file=log_file).get_data()
     xbr.setLevelsetBoundaryImage(nighresjava.JArray('float')(
         (data.flatten('F')).astype(float)))
 
-    data = load_volume(maximum_membership).get_data()
+    data = load_volume(maximum_membership, log_file=log_file).get_data()
     xbr.setMaximumMembershipImage(nighresjava.JArray('float')(
         (data.flatten('F')).astype(float)))
 
-    data = load_volume(maximum_label).get_data()
+    data = load_volume(maximum_label, log_file=log_file).get_data()
     xbr.setMaximumLabelImage(nighresjava.JArray('int')(
         (data.flatten('F')).astype(int).tolist()))
 
@@ -298,15 +300,15 @@ def extract_brain_region(segmentation, levelset_boundary,
     background_lvl = nb.Nifti1Image(lvl_data, affine, header)
 
     if save_data:
-        save_volume(ins_mask_file, inside_mask)
-        save_volume(ins_proba_file, inside_proba)
-        save_volume(ins_lvl_file, inside_lvl)
-        save_volume(reg_mask_file, region_mask)
-        save_volume(reg_proba_file, region_proba)
-        save_volume(reg_lvl_file, region_lvl)
-        save_volume(bg_mask_file, background_mask)
-        save_volume(bg_proba_file, background_proba)
-        save_volume(bg_lvl_file, background_lvl)
+        save_volume(ins_mask_file, inside_mask, log_file=log_file)
+        save_volume(ins_proba_file, inside_proba, log_file=log_file)
+        save_volume(ins_lvl_file, inside_lvl, log_file=log_file)
+        save_volume(reg_mask_file, region_mask, log_file=log_file)
+        save_volume(reg_proba_file, region_proba, log_file=log_file)
+        save_volume(reg_lvl_file, region_lvl, log_file=log_file)
+        save_volume(bg_mask_file, background_mask, log_file=log_file)
+        save_volume(bg_proba_file, background_proba, log_file=log_file)
+        save_volume(bg_lvl_file, background_lvl, log_file=log_file)
 
         output = {
             'inside_mask': ins_mask_file,
@@ -331,5 +333,8 @@ def extract_brain_region(segmentation, levelset_boundary,
             'background_proba': background_proba,
             'background_lvl': background_lvl
         }
+
+    end = time.time()
+    time_log(log_file, "extract_brain_region", "makespan", file_name, start, end)
 
     return output

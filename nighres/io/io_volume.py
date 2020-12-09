@@ -1,8 +1,12 @@
 import nibabel as nb
 import numpy as np
+import time
+import inspect
+import json
+import os
 
 
-def load_volume(volume):
+def load_volume(volume, log_file="timelog.json"):
     """
     Load volumetric data into a
     `Nibabel SpatialImage <http://nipy.org/nibabel/reference/nibabel.spatialimages.html#nibabel.spatialimages.SpatialImage>`_
@@ -30,9 +34,16 @@ def load_volume(volume):
 
     # if input is a filename, try to load it
     # python 2 version if isinstance(volume, basestring):
+
+
     if isinstance(volume, str):
+        start = time.time()
         # importing nifti files
         image = nb.load(volume)
+        end = time.time()
+
+        caller_function = str(inspect.stack()[1].function)
+        time_log(log_file, caller_function, "read", volume, start, end)
     # if volume is already a nibabel object
     elif isinstance(volume, nb.spatialimages.SpatialImage):
         image = volume
@@ -40,10 +51,11 @@ def load_volume(volume):
         raise ValueError('Input volume must be a either a path to a file in a '
                          'format that Nibabel can load, or a nibabel'
                          'SpatialImage.')
+
     return image
 
 
-def save_volume(filename, volume, dtype='float32', overwrite_file=True):
+def save_volume(filename, volume, dtype='float32', overwrite_file=True, log_file="timelog.json"):
     """
     Save volumetric data that is a
     `Nibabel SpatialImage <http://nipy.org/nibabel/reference/nibabel.spatialimages.html#nibabel.spatialimages.SpatialImage>`_
@@ -72,6 +84,7 @@ def save_volume(filename, volume, dtype='float32', overwrite_file=True):
        Python. DOI: 10.3897/rio.3.e12346
     """  # noqa
     import os
+    start = time.time()
     if dtype is not None:
         volume.set_data_dtype(dtype)
     if os.path.isfile(filename) and overwrite_file is False:
@@ -83,3 +96,29 @@ def save_volume(filename, volume, dtype='float32', overwrite_file=True):
             print("\nSaving {0}".format(filename))
         except AttributeError:
             print('\nInput volume must be a Nibabel SpatialImage.')
+
+    end = time.time()
+    caller_function = str(inspect.stack()[1].function)
+    time_log(log_file, caller_function, "write", filename, start, end)
+
+
+def time_log(log_file, task_name, op_name, filename, start, end):
+    # Create log file if not exists
+    if not os.path.exists(log_file):
+        with open(log_file, 'w+') as logfile:
+            logfile.write("{}")
+
+    # Save time log to json object
+    with open(log_file, "r") as logfile:
+        log = json.load(logfile)
+
+    if task_name not in log:
+        log[task_name] = {}
+
+    if op_name not in log[task_name]:
+        log[task_name][op_name] = []
+
+    log[task_name][op_name].append({"filename": filename, "start": start, "end": end, "duration": end-start})
+
+    with open(log_file, "w") as logfile:
+        json.dump(log, logfile)

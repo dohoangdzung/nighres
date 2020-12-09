@@ -3,15 +3,16 @@ import nibabel as nb
 import os
 import sys
 import nighresjava
-from ..io import load_volume, save_volume
+from ..io import load_volume, save_volume, time_log
 from ..utils import _output_dir_4saving, _fname_4saving, \
                     _check_topology_lut_dir, _check_available_memory
-
+import time
+import json
 
 def mp2rage_skullstripping(second_inversion, t1_weighted=None, t1_map=None,
                            skip_zero_values=True, topology_lut_dir=None,
                            save_data=False, overwrite=False, output_dir=None,
-                           file_name=None):
+                           file_name=None, log_file="timelog.json"):
     """ MP2RAGE skull stripping
 
     Estimates a brain mask from MRI data acquired with the MP2RAGE sequence.
@@ -70,6 +71,7 @@ def mp2rage_skullstripping(second_inversion, t1_weighted=None, t1_map=None,
     """
 
     print('\nMP2RAGE Skull Stripping')
+    start = time.time()
 
     # check topology lut dir and set default if not given
     topology_lut_dir = _check_topology_lut_dir(topology_lut_dir)
@@ -128,7 +130,7 @@ def mp2rage_skullstripping(second_inversion, t1_weighted=None, t1_map=None,
     algo = nighresjava.BrainMp2rageSkullStripping()
 
     # get dimensions and resolution from second inversion image
-    inv2_img = load_volume(second_inversion)
+    inv2_img = load_volume(second_inversion, log_file=log_file)
     inv2_data = inv2_img.get_data()
     inv2_affine = inv2_img.affine
     inv2_hdr = inv2_img.header
@@ -144,14 +146,14 @@ def mp2rage_skullstripping(second_inversion, t1_weighted=None, t1_map=None,
         raise ValueError('You must specify at least one of '
                          't1_weighted and t1_map')
     if t1_weighted is not None:
-        t1w_img = load_volume(t1_weighted)
+        t1w_img = load_volume(t1_weighted, log_file=log_file)
         t1w_data = t1w_img.get_data()
         t1w_affine = t1w_img.affine
         t1w_hdr = t1w_img.header
         algo.setT1weightedImage(nighresjava.JArray('float')(
                                       (t1w_data.flatten('F')).astype(float)))
     if t1_map is not None:
-        t1map_img = load_volume(t1_map)
+        t1map_img = load_volume(t1_map, log_file=log_file)
         t1map_data = t1map_img.get_data()
         t1map_affine = t1map_img.affine
         t1map_hdr = t1map_img.header
@@ -185,8 +187,8 @@ def mp2rage_skullstripping(second_inversion, t1_weighted=None, t1_map=None,
     mask = nb.Nifti1Image(mask_data, inv2_affine, inv2_hdr)
 
     if save_data:
-        save_volume(inv2_file, inv2_masked)
-        save_volume(mask_file, mask)
+        save_volume(inv2_file, inv2_masked, log_file=log_file)
+        save_volume(mask_file, mask, log_file=log_file)
         outputs = {'brain_mask': mask_file, 'inv2_masked': inv2_file}
     else:
         outputs = {'brain_mask': mask, 'inv2_masked': inv2_masked}
@@ -199,7 +201,7 @@ def mp2rage_skullstripping(second_inversion, t1_weighted=None, t1_map=None,
         t1w_masked = nb.Nifti1Image(t1w_masked_data, t1w_affine, t1w_hdr)
 
         if save_data:
-            save_volume(t1w_file, t1w_masked)
+            save_volume(t1w_file, t1w_masked, log_file=log_file)
             outputs['t1w_masked'] = t1w_file
         else:
             outputs['t1w_masked'] = t1w_masked
@@ -213,9 +215,12 @@ def mp2rage_skullstripping(second_inversion, t1_weighted=None, t1_map=None,
                                       t1map_hdr)
 
         if save_data:
-            save_volume(t1map_file, t1map_masked)
+            save_volume(t1map_file, t1map_masked, log_file=log_file)
             outputs['t1map_masked'] = t1map_file
         else:
             outputs['t1map_masked'] = t1map_masked
+
+    end = time.time()
+    time_log(log_file, "mp2rage_skullstripping", "makespan", file_name, start, end)
 
     return outputs
