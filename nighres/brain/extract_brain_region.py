@@ -335,6 +335,6 @@ def extract_brain_region(segmentation, levelset_boundary,
         }
 
     end = time.time()
-    time_log(log_file, "extract_brain_region", "makespan", file_name, start, end)
+    time_log(log_file, "extract_brain_region", "makespan", None, start, end)
 
     return output

@@ -311,6 +311,6 @@ def cruise_cortex_extraction(init_image, wm_image, gm_image, csf_image,
                 'thickness': thickness, 'pwm': pwm, 'pgm': pgm, 'pcsf': pcsf}
 
     end = time.time()
-    time_log(log_file, "cruise_cortex_extraction", "makespan", file_name, start, end)
+    time_log(log_file, "cruise_cortex_extraction", "makespan", None, start, end)
 
     return result

@@ -364,6 +364,6 @@ def mgdm_segmentation(contrast_image1, contrast_type1,
         }
 
     end = time.time()
-    time_log(log_file, "mgdm_segmentation", "makespan", file_name, start, end)
+    time_log(log_file, "mgdm_segmentation", "makespan", None, start, end)
 
     return output

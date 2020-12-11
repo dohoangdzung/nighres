@@ -118,7 +118,15 @@ def time_log(log_file, task_name, op_name, filename, start, end):
     if op_name not in log[task_name]:
         log[task_name][op_name] = []
 
-    log[task_name][op_name].append({"filename": filename, "start": start, "end": end, "duration": end-start})
+    if (filename is not None) and (filename is not "") and (os.stat(filename) is not None):
+        filesize = os.stat(filename).st_size
+    else:
+        filesize = 0
+    log[task_name][op_name].append({"filename": filename,
+                                    "filesize": filesize,
+                                    "start": start,
+                                    "end": end,
+                                    "duration": end-start})
 
     with open(log_file, "w") as logfile:
         json.dump(log, logfile)

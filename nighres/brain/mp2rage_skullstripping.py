@@ -221,6 +221,6 @@ def mp2rage_skullstripping(second_inversion, t1_weighted=None, t1_map=None,
             outputs['t1map_masked'] = t1map_masked
 
     end = time.time()
-    time_log(log_file, "mp2rage_skullstripping", "makespan", file_name, start, end)
+    time_log(log_file, "mp2rage_skullstripping", "makespan", file, start, end)
 
     return outputs
