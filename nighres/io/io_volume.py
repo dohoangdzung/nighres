@@ -5,6 +5,7 @@ import inspect
 import json
 import os
 from io import BytesIO
+from gzip import GzipFile
 
 
 def load_volume(volume, log_file="timelog.json"):
@@ -43,7 +44,7 @@ def load_volume(volume, log_file="timelog.json"):
         # image = nb.load(volume) # disable lazy-load
         # Read from file instead
         with open(volume, "rb") as in_file:
-            fh = nb.FileHolder(fileobj=BytesIO(in_file.read()))
+            fh = nb.FileHolder(fileobj=GzipFile(fileobj=BytesIO(in_file.read())))
             image = nb.Nifti1Image.from_file_map({"header": fh, "image": fh})
         end = time.time()
 
