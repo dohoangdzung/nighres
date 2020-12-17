@@ -44,7 +44,8 @@ def load_volume(volume, log_file="timelog.json"):
         # image = nb.load(volume) # disable lazy-load
         # Read from file instead
         with open(volume, "rb") as in_file:
-            fh = nb.FileHolder(fileobj=GzipFile(fileobj=BytesIO(in_file.read())))
+            # fh = nb.FileHolder(fileobj=GzipFile(fileobj=BytesIO(in_file.read())))
+            fh = nb.FileHolder(fileobj=BytesIO(in_file.read()))     # read uncompressed file
             image = nb.Nifti1Image.from_file_map({"header": fh, "image": fh})
         end = time.time()
 
@@ -90,6 +91,10 @@ def save_volume(filename, volume, dtype='float32', overwrite_file=True, log_file
        Python. DOI: 10.3897/rio.3.e12346
     """  # noqa
     import os
+
+    if filename.endswith(".gz"):
+        filename = filename[0:len(filename) - 3]
+
     start = time.time()
     if dtype is not None:
         volume.set_data_dtype(dtype)

@@ -160,6 +160,9 @@ def _fname_4saving(file_name=None, rootfile=None, suffix=None, ext=None, module=
     else:
         fullname = base + '.' + ext
 
+    if fullname.endswith(".gz"):
+        fullname = fullname[0:len(fullname) - 3]
+
     return fullname
 
 
